@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>時間割</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e2e5ea;
+  --text: #1c2024;
+  --text-dim: #6b7280;
+  --accent: #3b6ef5;
+  --danger: #d64545;
+  --warn: #c07c1e;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --surface: #1c1f25;
+    --surface-2: #23272e;
+    --border: #2e333b;
+    --text: #e8eaed;
+    --text-dim: #9aa3af;
+    --accent: #6b93ff;
+    --danger: #f07070;
+    --warn: #e0a94e;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ---------- レイアウト ---------- */
+.wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+
+header.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+#titleInput {
+  font-size: 20px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-width: 8ch;
+  max-width: 100%;
+  width: 16ch;
+}
+#titleInput:hover { border-color: var(--border); }
+#titleInput:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.spacer { flex: 1 1 auto; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background .12s, border-color .12s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { background: rgba(214,69,69,.09); }
+.btn.small { padding: 5px 10px; font-size: 12.5px; }
+
+/* ---------- 時間割グリッド ---------- */
+.board-scroll { overflow-x: auto; padding-bottom: 4px; }
+table.board {
+  border-collapse: separate;
+  border-spacing: 6px;
+  width: 100%;
+  min-width: 560px;
+  table-layout: fixed;
+}
+table.board th {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 4px 0 8px;
+  text-align: center;
+}
+table.board th.today { color: var(--accent); }
+table.board th.today::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 2px;
+  margin: 3px auto 0;
+  border-radius: 2px;
+  background: var(--accent);
+}
+col.timecol { width: 62px; }
+
+td.timecell {
+  text-align: center;
+  vertical-align: middle;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 2px;
+}
+td.timecell .no { display: block; font-size: 15px; font-weight: 700; color: var(--text); }
+td.timecell .tm { display: block; font-variant-numeric: tabular-nums; font-size: 10.5px; opacity: .85; }
+
+td.slot { padding: 0; height: 78px; }
+.cell {
+  width: 100%;
+  height: 100%;
+  min-height: 78px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 8px 9px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  transition: border-color .12s, box-shadow .12s;
+  position: relative;
+}
+.cell:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cell.empty { border-style: dashed; background: transparent; }
+.cell.empty::before {
+  content: "+";
+  color: var(--text-dim);
+  opacity: .5;
+  font-size: 20px;
+  margin: auto;
+  line-height: 1;
+}
+.cell .subject {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.3;
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  padding-right: 20px;
+}
+.cell .meta {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell .due {
+  margin-top: auto;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell.now { box-shadow: 0 0 0 2px var(--accent); }
+.cell .nowbadge {
+  position: absolute;
+  top: 5px; right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 5px;
+  padding: 0 4px;
+  line-height: 15px;
+}
+
+/* 期限の状態表示 */
+.due.overdue, .when.overdue { color: var(--danger); }
+.due.soon, .when.soon { color: var(--warn); }
+.due.later, .when.later { color: var(--text-dim); }
+
+/* ---------- 提出物パネル ---------- */
+.panel {
+  margin-top: 26px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-head h2 { font-size: 14.5px; font-weight: 700; margin: 0; }
+.panel-head .count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+.panel ul { list-style: none; margin: 0; padding: 0; }
+.panel li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--border);
+}
+.panel li:first-child { border-top: none; }
+.panel li.done .title, .panel li.done .subj { text-decoration: line-through; opacity: .55; }
+.panel li.done .when { opacity: .55; color: var(--text-dim); }
+.panel .subj {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  flex: none;
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel .title { font-size: 14px; flex: 1 1 auto; min-width: 0; word-break: break-word; }
+.panel .when { font-size: 12.5px; font-weight: 600; white-space: nowrap; flex: none; font-variant-numeric: tabular-nums; }
+.panel .empty-msg { padding: 16px; font-size: 13px; color: var(--text-dim); }
+input[type="checkbox"].chk { width: 17px; height: 17px; accent-color: var(--accent); flex: none; margin: 0; cursor: pointer; }
+.iconbtn {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 6px;
+  flex: none;
+}
+.iconbtn:hover { background: var(--surface-2); color: var(--danger); }
+
+.footer-note {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+/* ---------- ダイアログ ---------- */
+dialog {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0;
+  width: min(440px, calc(100vw - 32px));
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+dialog::backdrop { background: rgba(10,12,16,.42); backdrop-filter: blur(2px); }
+dialog .dlg-head { padding: 18px 20px 6px; font-weight: 700; font-size: 16px; }
+dialog .dlg-head .sub { font-weight: 500; font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+dialog .dlg-body { padding: 12px 20px 4px; display: grid; gap: 12px; max-height: 68vh; overflow-y: auto; }
+dialog .dlg-foot { padding: 14px 20px 18px; display: flex; gap: 8px; align-items: center; }
+
+label.field, .field { display: grid; gap: 5px; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+.field input[type="text"],
+.field input[type="time"],
+.field input[type="date"],
+.field input[type="number"],
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--text);
+}
+.field textarea { resize: vertical; min-height: 56px; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59,110,245,.16);
+}
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ダイアログ内の提出物編集 */
+.asg-box { border: 1px solid var(--border); border-radius: 10px; background: var(--bg); overflow: hidden; }
+.asg-box ul { list-style: none; margin: 0; padding: 0; }
+.asg-box li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-bottom: 1px solid var(--border);
+  color: var(--text); font-weight: 400;
+}
+.asg-box li.done .a-title { text-decoration: line-through; opacity: .55; }
+.asg-box .a-title { flex: 1 1 auto; font-size: 13.5px; min-width: 0; word-break: break-word; }
+.asg-box .a-due { font-size: 12px; font-weight: 600; white-space: nowrap; flex: none; font-variant-numeric: tabular-nums; }
+.asg-box .hint { padding: 12px 10px; font-size: 12.5px; color: var(--text-dim); }
+.asg-add { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; padding: 8px 10px; align-items: center; }
+.asg-add input { padding: 6px 8px !important; font-size: 13.5px !important; }
+.asg-add input[type="date"] { width: auto !important; }
+
+.checkline { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-dim); font-weight: 500; cursor: pointer; }
+.checkline input { width: 15px; height: 15px; accent-color: var(--accent); margin: 0; }
+.daylist { display: flex; flex-wrap: wrap; gap: 8px; }
+.daylist label {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 5px 10px; font-size: 13.5px; cursor: pointer;
+  background: var(--bg); color: var(--text); font-weight: 400;
+}
+.daylist input { accent-color: var(--accent); }
+.times-grid { display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; padding-right: 4px; }
+.times-row { display: grid; grid-template-columns: 34px 1fr 12px 1fr; align-items: center; gap: 8px; }
+.times-row .idx { font-weight: 700; font-size: 13px; text-align: center; color: var(--text-dim); }
+.times-row input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); font-size: 13.5px; width: 100%; }
+.times-row .dash { text-align: center; color: var(--text-dim); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px;
+  transform: translateX(-50%) translateY(14px);
+  background: var(--text); color: var(--bg);
+  padding: 9px 16px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 500;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s, transform .18s;
+  z-index: 50;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 印刷 ---------- */
+@media print {
+  :root { --bg: #fff; --surface: #fff; --border: #bbb; --text: #000; --text-dim: #555; --danger: #000; --warn: #333; }
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .wrap { max-width: none; padding: 0; }
+  table.board { min-width: 0; border-spacing: 4px; }
+  .cell { box-shadow: none !important; }
+  .cell .nowbadge { display: none; }
+  .panel { break-inside: avoid; }
+  .panel .chk, .panel .iconbtn { display: none; }
+}
+
+@media (max-width: 560px) {
+  .wrap { padding: 16px 10px 56px; }
+  td.slot { height: 68px; }
+  .cell { min-height: 68px; padding: 6px 7px; }
+  .cell .subject { font-size: 13px; }
+  col.timecol { width: 48px; }
+  .panel li { flex-wrap: wrap; }
+  .panel .title { flex-basis: 100%; order: 3; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top no-print">
+    <input id="titleInput" type="text" value="時間割" aria-label="タイトル" maxlength="24">
+    <span class="spacer"></span>
+    <button class="btn" id="btnSettings" type="button">設定</button>
+    <button class="btn" id="btnExport" type="button">書き出し</button>
+    <button class="btn" id="btnImport" type="button">読み込み</button>
+    <button class="btn" id="btnPrint" type="button">印刷</button>
+  </header>
+
+  <h1 id="printTitle" style="display:none"></h1>
+
+  <div class="board-scroll">
+    <table class="board" id="board"></table>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>提出物</h2>
+      <span class="count" id="asgCount">0</span>
+      <span class="spacer"></span>
+      <label class="checkline no-print"><input type="checkbox" id="showDone">完了も表示</label>
+    </div>
+    <ul id="asgPanelList"></ul>
+  </section>
+
+  <div class="footer-note no-print">
+    <span class="spacer"></span>
+    <span id="savedAt"></span>
+  </div>
+</div>
+
+<!-- コマ編集 -->
+<dialog id="cellDialog">
+  <form method="dialog" id="cellForm">
+    <div class="dlg-head">
+      コマを編集
+      <div class="sub" id="cellDialogSub"></div>
+    </div>
+    <div class="dlg-body">
+      <label class="field">科目名
+        <input type="text" id="fSubject" list="subjectList" autocomplete="off" placeholder="例: 数学Ⅱ">
+      </label>
+      <datalist id="subjectList"></datalist>
+      <div class="row2">
+        <label class="field">教室
+          <input type="text" id="fRoom" autocomplete="off" placeholder="例: 3-A">
+        </label>
+        <label class="field">担当
+          <input type="text" id="fTeacher" autocomplete="off" placeholder="例: 田中">
+        </label>
+      </div>
+      <label class="field">メモ
+        <textarea id="fNote" placeholder="持ち物など"></textarea>
+      </label>
+      <div class="field">
+        <span>提出物 / 提出期限<span id="asgOwner"></span></span>
+        <div class="asg-box">
+          <ul id="asgList"></ul>
+          <div class="asg-add">
+            <input type="text" id="aTitle" placeholder="提出物名" autocomplete="off" maxlength="60">
+            <input type="date" id="aDue" aria-label="提出期限">
+            <button type="button" class="btn small" id="aAdd">追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn danger" type="button" id="fClear">コマを削除</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close>閉じる</button>
+      <button class="btn primary" type="submit">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 設定 -->
+<dialog id="settingsDialog">
+  <form method="dialog" id="settingsForm">
+    <div class="dlg-head">設定</div>
+    <div class="dlg-body">
+      <div class="field">曜日
+        <div class="daylist" id="dayList"></div>
+      </div>
+      <div class="row2">
+        <label class="field">時限数
+          <input type="number" id="sPeriods" min="1" max="12" step="1">
+        </label>
+        <label class="field">時刻表示
+          <select id="sShowTimes">
+            <option value="1">表示する</option>
+            <option value="0">表示しない</option>
+          </select>
+        </label>
+      </div>
+      <div class="field">各時限の時刻
+        <div class="times-grid" id="timesGrid"></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn danger" type="button" id="sReset">全消去</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close>キャンセル</button>
+      <button class="btn primary" type="submit">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="fileInput" accept="application/json,.json" hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "zikanwari.v1";
+  const ALL_DAYS = ["月", "火", "水", "木", "金", "土", "日"];
+  const SOON_DAYS = 3; // これ以内の期限は強調する
+
+  const DEFAULT_TIMES = [
+    ["08:50", "09:40"], ["09:50", "10:40"], ["10:50", "11:40"],
+    ["11:50", "12:40"], ["13:30", "14:20"], ["14:30", "15:20"],
+    ["15:30", "16:20"], ["16:30", "17:20"], ["17:30", "18:20"],
+    ["18:30", "19:20"], ["19:30", "20:20"], ["20:30", "21:20"]
+  ];
+
+  /**
+   * state.cells    : { "月-1": {subject, room, teacher, note} }
+   * state.subjects : { "数学Ⅱ": { assignments: [{id, title, due, done}] } }
+   *                  提出物は科目に紐づくので、同じ科目のコマすべてで共有される
+   */
+  let state = load();
+
+  // ---------- 永続化 ----------
+  function defaultState() {
+    return {
+      title: "時間割",
+      days: ["月", "火", "水", "木", "金"],
+      periods: 6,
+      showTimes: true,
+      times: DEFAULT_TIMES.map((t) => t.slice()),
+      cells: {},
+      subjects: {}
+    };
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      return normalize(JSON.parse(raw));
+    } catch (e) {
+      console.warn("保存データを読めませんでした", e);
+      return defaultState();
+    }
+  }
+
+  function normalize(data) {
+    const d = defaultState();
+    if (!data || typeof data !== "object") return d;
+    if (typeof data.title === "string" && data.title.trim()) d.title = data.title.slice(0, 24);
+    if (Array.isArray(data.days)) {
+      const days = data.days.filter((x) => ALL_DAYS.includes(x));
+      if (days.length) d.days = ALL_DAYS.filter((x) => days.includes(x));
+    }
+    const p = Number(data.periods);
+    if (Number.isFinite(p)) d.periods = Math.min(12, Math.max(1, Math.round(p)));
+    if (typeof data.showTimes === "boolean") d.showTimes = data.showTimes;
+    if (Array.isArray(data.times)) {
+      data.times.forEach((row, i) => {
+        if (i < d.times.length && Array.isArray(row)) {
+          if (typeof row[0] === "string") d.times[i][0] = row[0];
+          if (typeof row[1] === "string") d.times[i][1] = row[1];
+        }
+      });
+    }
+    if (data.cells && typeof data.cells === "object") {
+      for (const [key, v] of Object.entries(data.cells)) {
+        if (!/^[月火水木金土日]-\d{1,2}$/.test(key) || !v || typeof v !== "object") continue;
+        const subject = String(v.subject ?? "").trim();
+        if (!subject) continue;
+        d.cells[key] = {
+          subject: subject.slice(0, 40),
+          room: String(v.room ?? "").trim().slice(0, 24),
+          teacher: String(v.teacher ?? "").trim().slice(0, 24),
+          note: String(v.note ?? "").slice(0, 200)
+        };
+      }
+    }
+    if (data.subjects && typeof data.subjects === "object") {
+      for (const [name, v] of Object.entries(data.subjects)) {
+        if (!name.trim() || !v || !Array.isArray(v.assignments)) continue;
+        const list = [];
+        for (const a of v.assignments) {
+          const title = String(a?.title ?? "").trim();
+          if (!title) continue;
+          list.push({
+            id: typeof a.id === "string" ? a.id : newId(),
+            title: title.slice(0, 60),
+            due: /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : "",
+            done: a.done === true
+          });
+        }
+        if (list.length) d.subjects[name.trim().slice(0, 40)] = { assignments: list };
+      }
+    }
+    return d;
+  }
+
+  let saveTimer = null;
+  function save() {
+    pruneSubjects();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      clearTimeout(saveTimer);
+      const el = document.getElementById("savedAt");
+      el.textContent = "保存しました";
+      saveTimer = setTimeout(() => { el.textContent = ""; }, 1800);
+    } catch (e) {
+      toast("保存できませんでした");
+    }
+  }
+
+  // 提出物が空になった科目は持ち回らない
+  function pruneSubjects() {
+    for (const [name, s] of Object.entries(state.subjects)) {
+      if (!s.assignments.length) delete state.subjects[name];
+    }
+  }
+
+  function newId() {
+    return (crypto.randomUUID ? crypto.randomUUID() : "a" + Date.now() + Math.random().toString(36).slice(2));
+  }
+
+  const keyOf = (day, period) => day + "-" + period;
+  const assignmentsOf = (subject) => state.subjects[subject]?.assignments ?? [];
+
+  // ---------- 日付ユーティリティ ----------
+  function todayStr() {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  }
+
+  // 期限までの日数（今日 = 0、過ぎていれば負）。期限なしは null
+  function daysUntil(due) {
+    if (!due) return null;
+    const [y, m, d] = due.split("-").map(Number);
+    const target = new Date(y, m - 1, d);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((target - today) / 86400000);
+  }
+
+  function dueClass(due) {
+    const n = daysUntil(due);
+    if (n === null) return "later";
+    if (n < 0) return "overdue";
+    if (n <= SOON_DAYS) return "soon";
+    return "later";
+  }
+
+  // 「9/12(金) 明日」のような表示
+  function dueLabel(due, opts = {}) {
+    if (!due) return opts.short ? "" : "期限なし";
+    const [y, m, d] = due.split("-").map(Number);
+    const dow = ALL_DAYS[(new Date(y, m - 1, d).getDay() + 6) % 7];
+    const date = `${m}/${d}(${dow})`;
+    const n = daysUntil(due);
+    let rel = "";
+    if (n < 0) rel = `${-n}日超過`;
+    else if (n === 0) rel = "今日";
+    else if (n === 1) rel = "明日";
+    else if (n <= SOON_DAYS) rel = `あと${n}日`;
+    return opts.short ? (rel || date) : (rel ? `${date} ${rel}` : date);
+  }
+
+  // 期限が近い順（期限なしは末尾）
+  function byDue(a, b) {
+    if (!a.due && !b.due) return 0;
+    if (!a.due) return 1;
+    if (!b.due) return -1;
+    return a.due < b.due ? -1 : a.due > b.due ? 1 : 0;
+  }
+
+  // ---------- 描画 ----------
+  const board = document.getElementById("board");
+  const titleInput = document.getElementById("titleInput");
+
+  function render() {
+    if (titleInput.value !== state.title) titleInput.value = state.title;
+    titleInput.style.width = Math.max(4, state.title.length + 1) + "ch";
+    document.title = state.title;
+    document.getElementById("printTitle").textContent = state.title;
+
+    renderBoard();
+    renderPanel();
+    renderSubjectList();
+  }
+
+  function renderBoard() {
+    const { days, periods, showTimes } = state;
+    const now = new Date();
+    const todayLabel = ALL_DAYS[(now.getDay() + 6) % 7];
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
+    let html = "<colgroup><col class='timecol'>" + days.map(() => "<col>").join("") + "</colgroup>";
+    html += "<thead><tr><th></th>" +
+      days.map((d) => `<th class="${d === todayLabel ? "today" : ""}">${d}</th>`).join("") +
+      "</tr></thead><tbody>";
+
+    for (let p = 1; p <= periods; p++) {
+      const [st, en] = state.times[p - 1] || ["", ""];
+      const isNowPeriod = showTimes && inRange(nowMin, st, en);
+      html += "<tr><td class='timecell'><span class='no'>" + p + "</span>" +
+        (showTimes && st && en ? `<span class="tm">${esc(st)}</span><span class="tm">${esc(en)}</span>` : "") +
+        "</td>";
+
+      for (const d of days) {
+        const c = state.cells[keyOf(d, p)];
+        const nowCls = isNowPeriod && d === todayLabel ? " now" : "";
+        const badge = isNowPeriod && d === todayLabel ? `<span class="nowbadge">今</span>` : "";
+        if (c) {
+          const meta = [c.room, c.teacher].filter(Boolean).join(" / ");
+          const pending = assignmentsOf(c.subject).filter((a) => !a.done).sort(byDue);
+          const next = pending[0];
+          html += `<td class="slot"><button type="button" class="cell filled${nowCls}" data-day="${d}" data-period="${p}">` +
+            badge +
+            `<span class="subject">${esc(c.subject)}</span>` +
+            (meta ? `<span class="meta">${esc(meta)}</span>` : "") +
+            (c.note ? `<span class="meta">${esc(c.note)}</span>` : "") +
+            (next
+              ? `<span class="due ${dueClass(next.due)}">📌 ${esc(next.title)}` +
+                (next.due ? ` ${esc(dueLabel(next.due))}` : "") +
+                (pending.length > 1 ? ` 他${pending.length - 1}件` : "") + `</span>`
+              : "") +
+            `</button></td>`;
+        } else {
+          html += `<td class="slot"><button type="button" class="cell empty${nowCls}" data-day="${d}" data-period="${p}" ` +
+            `aria-label="${d}曜 ${p}限 を追加">${badge}</button></td>`;
+        }
+      }
+      html += "</tr>";
+    }
+    board.innerHTML = html + "</tbody>";
+  }
+
+  function renderPanel() {
+    const showDone = document.getElementById("showDone").checked;
+    const rows = [];
+    for (const [subject, s] of Object.entries(state.subjects)) {
+      for (const a of s.assignments) {
+        if (a.done && !showDone) continue;
+        rows.push({ subject, ...a });
+      }
+    }
+    // 未完了を先に、それぞれ期限の近い順
+    rows.sort((a, b) => (a.done === b.done ? byDue(a, b) : a.done ? 1 : -1));
+
+    const pending = Object.values(state.subjects)
+      .reduce((n, s) => n + s.assignments.filter((a) => !a.done).length, 0);
+    document.getElementById("asgCount").textContent = pending;
+
+    const list = document.getElementById("asgPanelList");
+    if (!rows.length) {
+      list.innerHTML = `<li class="empty-msg">${
+        pending === 0 && !showDone && Object.keys(state.subjects).length
+          ? "未提出の提出物はありません。"
+          : "コマをクリックして、科目ごとに提出物と提出期限を登録できます。"
+      }</li>`;
+      return;
+    }
+    list.innerHTML = rows.map((r) => `
+      <li class="${r.done ? "done" : ""}" data-subject="${esc(r.subject)}" data-id="${esc(r.id)}">
+        <input type="checkbox" class="chk" ${r.done ? "checked" : ""} aria-label="完了">
+        <span class="subj">${esc(r.subject)}</span>
+        <span class="title">${esc(r.title)}</span>
+        <span class="when ${dueClass(r.due)}">${esc(dueLabel(r.due))}</span>
+        <button type="button" class="iconbtn no-print" data-del aria-label="削除">×</button>
+      </li>`).join("");
+  }
+
+  function renderSubjectList() {
+    const names = new Set([
+      ...Object.values(state.cells).map((c) => c.subject),
+      ...Object.keys(state.subjects)
+    ]);
+    document.getElementById("subjectList").innerHTML =
+      [...names].map((n) => `<option value="${esc(n)}">`).join("");
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (m) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  }
+
+  function toMin(hhmm) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  }
+
+  function inRange(nowMin, st, en) {
+    const a = toMin(st), b = toMin(en);
+    return a !== null && b !== null && nowMin >= a && nowMin <= b;
+  }
+
+  // ---------- 提出物パネルの操作 ----------
+  document.getElementById("showDone").addEventListener("change", renderPanel);
+
+  document.getElementById("asgPanelList").addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-id]");
+    if (!li) return;
+    const { subject, id } = li.dataset;
+    if (e.target.closest("[data-del]")) {
+      removeAssignment(subject, id);
+    } else if (e.target.classList.contains("chk")) {
+      toggleAssignment(subject, id, e.target.checked);
+    }
+  });
+
+  function removeAssignment(subject, id) {
+    const s = state.subjects[subject];
+    if (!s) return;
+    s.assignments = s.assignments.filter((a) => a.id !== id);
+    save();
+    render();
+    if (cellDialog.open) renderAsgEditor();
+  }
+
+  function toggleAssignment(subject, id, done) {
+    const a = state.subjects[subject]?.assignments.find((x) => x.id === id);
+    if (!a) return;
+    a.done = done;
+    save();
+    render();
+    if (cellDialog.open) renderAsgEditor();
+  }
+
+  // ---------- コマ編集 ----------
+  const cellDialog = document.getElementById("cellDialog");
+  const fSubject = document.getElementById("fSubject");
+  const fRoom = document.getElementById("fRoom");
+  const fTeacher = document.getElementById("fTeacher");
+  const fNote = document.getElementById("fNote");
+  const aTitle = document.getElementById("aTitle");
+  const aDue = document.getElementById("aDue");
+  const asgList = document.getElementById("asgList");
+  let editing = null; // {day, period, original}
+
+  board.addEventListener("click", (e) => {
+    const btn = e.target.closest(".cell");
+    if (!btn) return;
+    openCell(btn.dataset.day, Number(btn.dataset.period));
+  });
+
+  function openCell(day, period) {
+    const c = state.cells[keyOf(day, period)];
+    editing = { day, period, original: c ? c.subject : "" };
+    fSubject.value = c ? c.subject : "";
+    fRoom.value = c ? c.room : "";
+    fTeacher.value = c ? c.teacher : "";
+    fNote.value = c ? c.note : "";
+    aTitle.value = "";
+    aDue.value = "";
+    document.getElementById("cellDialogSub").textContent =
+      `${day}曜日 ${period}限` +
+      (state.showTimes && state.times[period - 1] ? `　${state.times[period - 1][0]}–${state.times[period - 1][1]}` : "");
+    document.getElementById("fClear").style.visibility = c ? "visible" : "hidden";
+    renderAsgEditor();
+    cellDialog.showModal();
+    setTimeout(() => fSubject.focus(), 0);
+  }
+
+  // 科目名を変えると、その科目の提出物リストに切り替わる
+  fSubject.addEventListener("input", () => {
+    const name = fSubject.value.trim();
+    const sample = Object.values(state.cells).find((c) => c.subject === name);
+    if (sample) {
+      if (!fRoom.value) fRoom.value = sample.room;
+      if (!fTeacher.value) fTeacher.value = sample.teacher;
+    }
+    renderAsgEditor();
+  });
+
+  function renderAsgEditor() {
+    const subject = fSubject.value.trim();
+    document.getElementById("asgOwner").textContent = subject ? `（${subject}）` : "";
+    const canEdit = subject.length > 0;
+    aTitle.disabled = aDue.disabled = document.getElementById("aAdd").disabled = !canEdit;
+
+    if (!canEdit) {
+      asgList.innerHTML = `<li class="hint">先に科目名を入力してください。提出物は科目ごとに登録され、同じ科目のコマすべてに表示されます。</li>`;
+      return;
+    }
+    const list = assignmentsOf(subject).slice().sort((a, b) => (a.done === b.done ? byDue(a, b) : a.done ? 1 : -1));
+    if (!list.length) {
+      asgList.innerHTML = `<li class="hint">この科目の提出物はまだありません。</li>`;
+      return;
+    }
+    asgList.innerHTML = list.map((a) => `
+      <li class="${a.done ? "done" : ""}" data-id="${esc(a.id)}">
+        <input type="checkbox" class="chk" ${a.done ? "checked" : ""} aria-label="完了">
+        <span class="a-title">${esc(a.title)}</span>
+        <span class="a-due ${dueClass(a.due)}">${esc(dueLabel(a.due))}</span>
+        <button type="button" class="iconbtn" data-del aria-label="削除">×</button>
+      </li>`).join("");
+  }
+
+  asgList.addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-id]");
+    if (!li) return;
+    const subject = fSubject.value.trim();
+    if (e.target.closest("[data-del]")) removeAssignment(subject, li.dataset.id);
+    else if (e.target.classList.contains("chk")) toggleAssignment(subject, li.dataset.id, e.target.checked);
+  });
+
+  document.getElementById("aAdd").addEventListener("click", addAssignment);
+  aTitle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addAssignment(); }
+  });
+
+  function addAssignment() {
+    const subject = fSubject.value.trim();
+    const title = aTitle.value.trim();
+    if (!subject) { toast("先に科目名を入力してください"); fSubject.focus(); return; }
+    if (!title) { toast("提出物名を入力してください"); aTitle.focus(); return; }
+    if (!state.subjects[subject]) state.subjects[subject] = { assignments: [] };
+    state.subjects[subject].assignments.push({
+      id: newId(),
+      title: title.slice(0, 60),
+      due: /^\d{4}-\d{2}-\d{2}$/.test(aDue.value) ? aDue.value : "",
+      done: false
+    });
+    aTitle.value = "";
+    aDue.value = "";
+    save();
+    render();
+    renderAsgEditor();
+    aTitle.focus();
+  }
+
+  document.getElementById("cellForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!editing) return;
+    const subject = fSubject.value.trim();
+    const key = keyOf(editing.day, editing.period);
+    if (!subject) delete state.cells[key];
+    else state.cells[key] = {
+      subject: subject.slice(0, 40),
+      room: fRoom.value.trim().slice(0, 24),
+      teacher: fTeacher.value.trim().slice(0, 24),
+      note: fNote.value.trim().slice(0, 200)
+    };
+    cellDialog.close();
+    save();
+    render();
+  });
+
+  document.getElementById("fClear").addEventListener("click", () => {
+    if (!editing) return;
+    delete state.cells[keyOf(editing.day, editing.period)];
+    cellDialog.close();
+    save();
+    render();
+  });
+
+  // ---------- 設定 ----------
+  const settingsDialog = document.getElementById("settingsDialog");
+  const sPeriods = document.getElementById("sPeriods");
+  const sShowTimes = document.getElementById("sShowTimes");
+
+  document.getElementById("dayList").innerHTML = ALL_DAYS.map((d) =>
+    `<label><input type="checkbox" value="${d}">${d}</label>`).join("");
+
+  document.getElementById("timesGrid").innerHTML = DEFAULT_TIMES.map((t, i) =>
+    `<div class="times-row" data-i="${i}">
+       <span class="idx">${i + 1}</span>
+       <input type="time" class="t-start">
+       <span class="dash">–</span>
+       <input type="time" class="t-end">
+     </div>`).join("");
+
+  document.getElementById("btnSettings").addEventListener("click", () => {
+    for (const cb of document.querySelectorAll("#dayList input")) cb.checked = state.days.includes(cb.value);
+    sPeriods.value = state.periods;
+    sShowTimes.value = state.showTimes ? "1" : "0";
+    syncTimesRows();
+    settingsDialog.showModal();
+  });
+
+  sPeriods.addEventListener("input", syncTimesRows);
+
+  function syncTimesRows() {
+    const n = Math.min(12, Math.max(1, Number(sPeriods.value) || 1));
+    document.querySelectorAll("#timesGrid .times-row").forEach((row, i) => {
+      row.style.display = i < n ? "" : "none";
+      row.querySelector(".t-start").value = state.times[i][0];
+      row.querySelector(".t-end").value = state.times[i][1];
+    });
+  }
+
+  document.getElementById("settingsForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const days = [...document.querySelectorAll("#dayList input:checked")].map((c) => c.value);
+    if (!days.length) { toast("曜日を1つ以上選んでください"); return; }
+    state.days = ALL_DAYS.filter((d) => days.includes(d));
+    state.periods = Math.min(12, Math.max(1, Number(sPeriods.value) || 6));
+    state.showTimes = sShowTimes.value === "1";
+    document.querySelectorAll("#timesGrid .times-row").forEach((row, i) => {
+      const st = row.querySelector(".t-start").value;
+      const en = row.querySelector(".t-end").value;
+      if (st) state.times[i][0] = st;
+      if (en) state.times[i][1] = en;
+    });
+    settingsDialog.close();
+    save();
+    render();
+  });
+
+  document.getElementById("sReset").addEventListener("click", () => {
+    if (!confirm("時間割と提出物をすべて消去します。よろしいですか？")) return;
+    state = defaultState();
+    settingsDialog.close();
+    save();
+    render();
+    toast("消去しました");
+  });
+
+  // ---------- タイトル ----------
+  titleInput.addEventListener("input", () => {
+    state.title = titleInput.value.slice(0, 24) || "時間割";
+    titleInput.style.width = Math.max(4, titleInput.value.length + 1) + "ch";
+    document.title = state.title;
+    document.getElementById("printTitle").textContent = state.title;
+    save();
+  });
+
+  // ---------- 書き出し / 読み込み / 印刷 ----------
+  document.getElementById("btnExport").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${state.title || "時間割"}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  const fileInput = document.getElementById("fileInput");
+  document.getElementById("btnImport").addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileInput.value = "";
+    if (!file) return;
+    try {
+      state = normalize(JSON.parse(await file.text()));
+      save();
+      render();
+      toast("読み込みました");
+    } catch (e) {
+      toast("読み込めませんでした");
+    }
+  });
+
+  document.getElementById("btnPrint").addEventListener("click", () => {
+    const pt = document.getElementById("printTitle");
+    pt.style.display = "block";
+    print();
+    pt.style.display = "none";
+  });
+
+  // ---------- 共通 ----------
+  for (const b of document.querySelectorAll("[data-close]")) {
+    b.addEventListener("click", () => b.closest("dialog").close());
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+  }
+
+  // 日付が変わったら残り日数の表示を更新する
+  let lastDay = todayStr();
+  setInterval(() => {
+    const now = todayStr();
+    if (now !== lastDay) { lastDay = now; render(); }
+    else renderBoard();
+  }, 60000);
+
+  render();
+})();
+</script>
+</body>
+</html>
