@@ -4,6 +4,10 @@
 
 ビルド不要・依存ライブラリなし。`index.html` をブラウザで開くだけで動きます。
 
+**▶ そのまま使う: https://higurashitaishi.github.io/zikanwari/**
+
+手元に置いて使う場合:
+
 ```bash
 git clone https://github.com/higurashitaishi/zikanwari.git
 cd zikanwari
